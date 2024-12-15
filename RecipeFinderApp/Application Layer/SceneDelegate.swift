@@ -13,14 +13,34 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        guard let windowScene = (scene as? UIWindowScene) else { return }
-        let window = UIWindow(windowScene: windowScene)
-        let mainVC = ViewController()
-        let navigationController = UINavigationController(rootViewController: mainVC)
-        window.rootViewController = navigationController
-        self.window = window
-        window.makeKeyAndVisible()
-    }
+            guard let windowScene = (scene as? UIWindowScene) else { return }
+            window = UIWindow(windowScene: windowScene)
+          
+            let homeVC = ViewController()
+            let searchVC = IngredientsSearchViewController()
+            let favoritesVC = FavoritesViewController()
+            
+            homeVC.title = "Home"
+            searchVC.title = "Search Recipes"
+            favoritesVC.title = "Favorites"
+            
+            homeVC.tabBarItem = UITabBarItem(title: "Home", image: UIImage(systemName: "house.fill"), tag: 0)
+            searchVC.tabBarItem = UITabBarItem(title: "Search", image: UIImage(systemName: "magnifyingglass"), tag: 1)
+            favoritesVC.tabBarItem = UITabBarItem(title: "Favorites", image: UIImage(systemName: "heart.fill"), tag: 2)
+            
+            let tabBarController = UITabBarController()
+            tabBarController.viewControllers = [homeVC, searchVC, favoritesVC]
+            
+            let homeNav = UINavigationController(rootViewController: homeVC)
+            let searchNav = UINavigationController(rootViewController: searchVC)
+            let favoritesNav = UINavigationController(rootViewController: favoritesVC)
+            
+            tabBarController.viewControllers = [homeNav, searchNav, favoritesNav]
+          
+            window?.rootViewController = tabBarController
+            window?.makeKeyAndVisible()
+        }
+        
 
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.

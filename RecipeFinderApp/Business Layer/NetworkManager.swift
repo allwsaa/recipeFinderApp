@@ -11,7 +11,9 @@ import Alamofire
 class NetworkManager {
     static let shared = NetworkManager()
     private let baseURL = "https://api.spoonacular.com/recipes"
-    private let apiKey = "86e3c607d21149d5ae5d3c4e7818b7e3"
+    private let apiKey = "c00988fc3397406296476c02eb459530"
+    // aisha api key c00988fc3397406296476c02eb459530
+    // alima api key 86e3c607d21149d5ae5d3c4e7818b7e3
 
     // Fetch a list of recipes
     func fetchRecipes(by ingredients: [String] = [], filters: [String: String] = [:], completion: @escaping ([Recipe]?, Error?) -> Void) {

@@ -5,11 +5,23 @@
 //  Created by ntvlbl on 13.12.2024.
 //
 
+//
+//  ViewController.swift
+//  RecipeFinderApp
+//
+//  Created by ntvlbl on 13.12.2024.
+//
+
 import UIKit
 import SnapKit
+import CoreData
 
 class ViewController: UIViewController {
+
     private var recipes: [Recipe] = []
+    private var context: NSManagedObjectContext {
+        return (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    }
 
     private let tableView: UITableView = {
         let table = UITableView(frame: .zero, style: .plain)
@@ -31,13 +43,15 @@ class ViewController: UIViewController {
     }
 
     private func setupUI() {
-        title = "Recipes Finder App"
+        title = "Recipes"
         view.backgroundColor = .white
-
         navigationItem.searchController = searchController
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Filters", style: .plain, target: self, action: #selector(openFilters))
         searchController.searchBar.delegate = self
 
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Filters",style: .plain, target: self, action: #selector(openFilters))
+
+      
+    
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(RecipeCell.self, forCellReuseIdentifier: "RecipeCell")
@@ -66,17 +80,43 @@ class ViewController: UIViewController {
             }
         }
     }
+
+    private func addToFavorites(recipe: Recipe) {
+        let fetchRequest: NSFetchRequest<RecipeEntity> = RecipeEntity.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %d", recipe.id)
+
+        do {
+            let results = try context.fetch(fetchRequest)
+            if !results.isEmpty {
+                showNotification("Recipe already in Favorites!")
+                return
+            }
+            
+            let newFavorite = RecipeEntity(context: context)
+            newFavorite.id = Int64(recipe.id)
+            newFavorite.title = recipe.title
+            newFavorite.image = recipe.image
+
+            try context.save()
+            showNotification("Added to Favorites!")
+            
+            NotificationCenter.default.post(name: NSNotification.Name("favoritesUpdated"), object: nil)
+            
+        } catch {
+            print("Failed to add favorite: \(error.localizedDescription)")
+        }
+    }
+
+    private func showNotification(_ message: String) {
+        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+        self.present(alert, animated: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            alert.dismiss(animated: true)
+        }
+    }
 }
 
 extension ViewController: UITableViewDelegate, UITableViewDataSource {
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 180
-    }
-
-    func numberOfSections(in tableView: UITableView) -> Int {
-        return 1
-    }
-
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return recipes.count
     }
@@ -91,7 +131,22 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let selectedRecipe = recipes[indexPath.row]
         let detailVC = RecipeDetailViewController(recipeID: selectedRecipe.id)
+        detailVC.hidesBottomBarWhenPushed = true
         navigationController?.pushViewController(detailVC, animated: true)
+    }
+
+    
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let addToFavoritesAction = UIContextualAction(style: .normal, title: "Favorite") { [weak self] _, _, completionHandler in
+            let recipe = self?.recipes[indexPath.row]
+            if let recipe = recipe {
+                self?.addToFavorites(recipe: recipe)
+                completionHandler(true)
+            }
+        }
+        addToFavoritesAction.backgroundColor = .systemGreen
+        addToFavoritesAction.image = UIImage(systemName: "heart.fill")
+        return UISwipeActionsConfiguration(actions: [addToFavoritesAction])
     }
 }
 
