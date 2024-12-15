@@ -41,8 +41,8 @@ class RecipeCell: UITableViewCell {
         recipeImageView.snp.makeConstraints { make in
             make.top.equalToSuperview().offset(10) // Отступ сверху
             make.centerX.equalToSuperview() // Центр по горизонтали
-            make.height.equalTo(120) // Высота картинки
-            make.width.equalTo(200) // Ширина картинки
+            make.height.equalTo(150) // Высота картинки
+            make.width.equalTo(250) // Ширина картинки
         }
 
         titleLabel.snp.makeConstraints { make in

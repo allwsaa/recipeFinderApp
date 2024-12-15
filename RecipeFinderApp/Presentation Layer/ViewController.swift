@@ -9,12 +9,15 @@ import UIKit
 import SnapKit
 
 class ViewController: UIViewController {
+    
     private var recipes: [Recipe] = []
 
     private let tableView: UITableView = {
         let table = UITableView(frame: .zero, style: .plain)
         table.separatorStyle = .none
         table.backgroundColor = .systemGroupedBackground
+        table.rowHeight = UITableView.automaticDimension
+        table.estimatedRowHeight = 200
         return table
     }()
 
@@ -31,7 +34,7 @@ class ViewController: UIViewController {
     }
 
     private func setupUI() {
-        title = "Recipes Finder App"
+        title = "Recipes"
         view.backgroundColor = .white
 
         navigationItem.searchController = searchController
@@ -69,9 +72,9 @@ class ViewController: UIViewController {
 }
 
 extension ViewController: UITableViewDelegate, UITableViewDataSource {
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 180
-    }
+//    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+//        return 180
+//    }
 
     func numberOfSections(in tableView: UITableView) -> Int {
         return 1
