@@ -31,8 +31,18 @@ struct RecipeDetail: Codable {
     let healthScore: Int?
     let nutrition: NutritionInfo?
     let extendedIngredients: [Ingredient]?
+    let analyzedInstructions: [Instruction]?
 }
 
+struct Instruction: Codable {
+    let name: String
+    let steps: [Step]
+}
+
+struct Step: Codable {
+    let number: Int
+    let step: String
+}
 
 struct Ingredient: Codable {
     let id: Int

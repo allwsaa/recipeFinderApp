@@ -11,7 +11,7 @@ import Alamofire
 class NetworkManager {
     static let shared = NetworkManager()
     private let baseURL = "https://api.spoonacular.com/recipes"
-    private let apiKey = "c00988fc3397406296476c02eb459530"
+    private let apiKey = "86e3c607d21149d5ae5d3c4e7818b7e3"
     // aisha api key c00988fc3397406296476c02eb459530
     // alima api key 86e3c607d21149d5ae5d3c4e7818b7e3
 
@@ -36,7 +36,7 @@ class NetworkManager {
     }
 
     func fetchRecipeDetail(by id: Int, completion: @escaping (RecipeDetail?, Error?) -> Void) {
-        let url = "https://api.spoonacular.com/recipes/\(id)/information?apiKey=\(apiKey)"
+        let url = "https://api.spoonacular.com/recipes/\(id)/information?apiKey=\(apiKey)&includeNutrition=true"
         AF.request(url).responseDecodable(of: RecipeDetail.self) { response in
             switch response.result {
             case .success(let recipeDetail):
