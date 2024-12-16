@@ -17,11 +17,13 @@ import SnapKit
 import CoreData
 
 class ViewController: UIViewController {
-
-
-
+    
 
     private var recipes: [Recipe] = []
+    private var isLoading = false
+    private var currentOffset = 0
+    private let pageSize = 10
+
     private var context: NSManagedObjectContext {
         return (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     }
@@ -73,18 +75,29 @@ class ViewController: UIViewController {
         navigationController?.pushViewController(filterVC, animated: true)
     }
 
+
     private func fetchRecipes() {
-        NetworkManager.shared.fetchRecipes { [weak self] recipes, error in
-            if let error = error {
-                print("Error fetching recipes: \(error)")
-                return
-            }
-            self?.recipes = recipes ?? []
+        guard !isLoading else { return }
+        isLoading = true
+        
+        NetworkManager.shared.fetchRecipes(offset: currentOffset, number: pageSize) { [weak self] newRecipes, error in
             DispatchQueue.main.async {
-                self?.tableView.reloadData()
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if let newRecipes = newRecipes, !newRecipes.isEmpty {
+                    self.recipes.append(contentsOf: newRecipes)
+                    self.currentOffset += self.pageSize
+                    self.tableView.reloadData()
+                } else if let error = error {
+                    print("Error fetching recipes: \(error.localizedDescription)")
+                } else {
+                    print("No more recipes to load.")
+                }
             }
         }
     }
+
 
     private func addToFavorites(recipe: Recipe) {
         let fetchRequest: NSFetchRequest<RecipeEntity> = RecipeEntity.fetchRequest()
@@ -137,10 +150,19 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "RecipeCell", for: indexPath) as! RecipeCell
-        let recipe = recipes[indexPath.row]
-        cell.configure(with: recipe)
-        return cell
+        if let cell = tableView.dequeueReusableCell(withIdentifier: "RecipeCell", for: indexPath) as? RecipeCell {
+            let recipe = recipes[indexPath.row]
+            cell.configure(with: recipe)
+            return cell
+        } else {
+            return UITableViewCell()
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        if indexPath.row == recipes.count - 1 && !isLoading {
+            fetchRecipes()
+        }
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {

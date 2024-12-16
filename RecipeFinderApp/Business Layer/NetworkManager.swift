@@ -16,8 +16,8 @@ class NetworkManager {
     // alima api key 86e3c607d21149d5ae5d3c4e7818b7e3
 
     // Fetch a list of recipes
-    func fetchRecipes(by ingredients: [String] = [], filters: [String: String] = [:], completion: @escaping ([Recipe]?, Error?) -> Void) {
-        var url = "\(baseURL)/complexSearch?apiKey=\(apiKey)&addRecipeInformation=true"
+    func fetchRecipes(by ingredients: [String] = [], filters: [String: String] = [:], offset: Int = 0, number: Int = 10, completion: @escaping ([Recipe]?, Error?) -> Void) {
+        var url = "\(baseURL)/complexSearch?apiKey=\(apiKey)&addRecipeInformation=true&offset=\(offset)&number=\(number)"
         if !ingredients.isEmpty {
             url += "&query=\(ingredients.joined(separator: ","))"
         }

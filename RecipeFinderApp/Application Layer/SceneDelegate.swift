@@ -34,8 +34,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let homeNav = UINavigationController(rootViewController: homeVC)
             let searchNav = UINavigationController(rootViewController: searchVC)
             let favoritesNav = UINavigationController(rootViewController: favoritesVC)
-            
-            tabBarController.viewControllers = [homeNav, searchNav, favoritesNav]
+            let shoppingListVC = ShoppingListViewController()
+            shoppingListVC.title = "Shopping List"
+            shoppingListVC.tabBarItem = UITabBarItem(title: "Shopping List", image: UIImage(systemName: "cart.fill"), tag: 3)
+
+            tabBarController.viewControllers = [homeNav, searchNav, favoritesNav, shoppingListVC]
+
           
             window?.rootViewController = tabBarController
             window?.makeKeyAndVisible()

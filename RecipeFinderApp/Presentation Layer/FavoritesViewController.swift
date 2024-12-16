@@ -89,4 +89,18 @@ extension FavoritesViewController: UITableViewDelegate, UITableViewDataSource {
             print("Failed to delete favorite: \(error.localizedDescription)")
         }
     }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true) // Deselect the cell
+        
+        // Retrieve the selected recipe
+        let selectedRecipe = favoriteRecipes[indexPath.row]
+        
+        // Initialize the RecipeDetailViewController with the recipe's ID
+        let detailVC = RecipeDetailViewController(recipeID: Int(selectedRecipe.id))
+        
+        // Push the detail view controller onto the navigation stack
+        navigationController?.pushViewController(detailVC, animated: true)
+    }
+
 }
