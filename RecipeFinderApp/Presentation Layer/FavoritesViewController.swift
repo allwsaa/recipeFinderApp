@@ -65,9 +65,18 @@ extension FavoritesViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "RecipeCell", for: indexPath) as! RecipeCell
         let recipe = favoriteRecipes[indexPath.row]
-        cell.configure(with: Recipe(id: Int(recipe.id), title: recipe.title ?? "", image: recipe.image ?? ""))
+        
+        cell.configure(with: Recipe(
+            id: Int(recipe.id),
+            title: recipe.title ?? "No Title",
+            image: recipe.image ?? "",
+            readyInMinutes: nil, 
+            nutrition: nil
+        ))
+        
         return cell
     }
+
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { [weak self] _, _, completionHandler in

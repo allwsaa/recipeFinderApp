@@ -19,60 +19,99 @@ class IngredientsViewController: UIViewController {
         return table
     }()
     
-    private func fetchCheckedIngredients() {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
-        
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
-        
-        do {
-            let results = try context.fetch(fetchRequest)
-            checkedIngredients = results.compactMap { ($0 as? NSManagedObject)?.value(forKey: "name") as? String }
-            tableView.reloadData()
-        } catch {
-            print("Failed to fetch checked ingredients: \(error)")
-        }
-    }
+    private let addToShoppingListButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Add to Shopping List", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
+        button.tintColor = .white
+        button.backgroundColor = .systemGreen
+        button.layer.cornerRadius = 8
+        button.addTarget(self, action: #selector(addToShoppingList), for: .touchUpInside)
+        return button
+    }()
     
-    private func saveCheckedIngredient(name: String) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
-        
-        let entity = NSEntityDescription.entity(forEntityName: "ShoppingItem", in: context)!
-        let newItem = NSManagedObject(entity: entity, insertInto: context)
-        newItem.setValue(name, forKey: "name")
-        
-        do {
-            try context.save()
-            print("Ingredient saved: \(name)")
-            
-            // Post a notification to inform the shopping list
-            NotificationCenter.default.post(name: .shoppingListUpdated, object: nil)
-        } catch {
-            print("Failed to save ingredient: \(error)")
-        }
-    }
-
-
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Ingredients"
         view.backgroundColor = .white
         view.addSubview(tableView)
+        view.addSubview(addToShoppingListButton)
         
         tableView.delegate = self
         tableView.dataSource = self
         
         tableView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
+            make.top.left.right.equalToSuperview()
+            make.bottom.equalTo(addToShoppingListButton.snp.top).offset(-10)
         }
         
-        fetchCheckedIngredients() // Preload checked ingredients from Core Data
+        addToShoppingListButton.snp.makeConstraints { make in
+            make.left.right.equalToSuperview().inset(20)
+            make.bottom.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.height.equalTo(50)
+        }
+    }
+    
+    @objc private func addToShoppingList() {
+        guard !checkedIngredients.isEmpty else {
+            showAlert(title: "No Ingredients Selected", message: "Please select ingredients to add to the shopping list.")
+            return
+        }
+        
+        var addedIngredients = [String]()
+        for ingredient in checkedIngredients {
+            if addIngredientToCoreData(ingredient) {
+                addedIngredients.append(ingredient)
+            }
+        }
+        
+        if addedIngredients.isEmpty {
+            showAlert(title: "No New Ingredients Added", message: "All selected ingredients already exist in the shopping list.")
+        } else {
+            showAlert(title: "Ingredients Added", message: "\(addedIngredients.joined(separator: ", ")) added to the shopping list.")
+        }
+        
+        checkedIngredients.removeAll()
+        tableView.reloadData()
+    }
+    
+    private func addIngredientToCoreData(_ ingredientName: String) -> Bool {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return false }
+        let context = appDelegate.persistentContainer.viewContext
+        
+        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
+        fetchRequest.predicate = NSPredicate(format: "name == %@", ingredientName)
+        
+        do {
+            let results = try context.fetch(fetchRequest)
+            
+            if !results.isEmpty {
+                return false
+            }
+            
+            let entity = NSEntityDescription.entity(forEntityName: "ShoppingItem", in: context)!
+            let newShoppingItem = NSManagedObject(entity: entity, insertInto: context)
+            newShoppingItem.setValue(ingredientName, forKey: "name")
+            newShoppingItem.setValue(true, forKey: "isChecked") // Explicitly set isChecked
+            
+            try context.save()
+            NotificationCenter.default.post(name: .shoppingListUpdated, object: nil)
+            return true
+        } catch {
+            print("Failed to add ingredient: \(error)")
+            return false
+        }
     }
 
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
 }
 
-// MARK: - UITableViewDelegate, UITableViewDataSource
+
 extension IngredientsViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return ingredients.count
@@ -83,11 +122,10 @@ extension IngredientsViewController: UITableViewDelegate, UITableViewDataSource 
         let ingredient = ingredients[indexPath.row].original
         let isChecked = checkedIngredients.contains(ingredient)
         
-        // Update the cell UI with checkmark or empty circle
         var content = cell.defaultContentConfiguration()
         content.text = ingredient
         content.image = UIImage(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-        content.imageProperties.tintColor = .systemBlue
+        content.imageProperties.tintColor = .systemGreen
         cell.contentConfiguration = content
         
         return cell
@@ -99,97 +137,9 @@ extension IngredientsViewController: UITableViewDelegate, UITableViewDataSource 
 
         if let index = checkedIngredients.firstIndex(of: ingredient) {
             checkedIngredients.remove(at: index)
-            removeFromCoreData(ingredient)
         } else {
             checkedIngredients.append(ingredient)
-            addIngredientToShoppingList(ingredient) // Replaces saveToCoreData
         }
         tableView.reloadData()
     }
-
 }
-
-// MARK: - Core Data
-extension IngredientsViewController {
-    
-    private func addIngredientToShoppingList(_ ingredientName: String) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
-        
-        // Check for duplicate
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
-        fetchRequest.predicate = NSPredicate(format: "name == %@", ingredientName)
-        
-        do {
-            let results = try context.fetch(fetchRequest)
-            
-            // If the ingredient already exists, exit early
-            if !results.isEmpty {
-                print("Ingredient already exists in shopping list: \(ingredientName)")
-                return
-            }
-            
-            // If no duplicate found, add to Core Data
-            let entity = NSEntityDescription.entity(forEntityName: "ShoppingItem", in: context)!
-            let newShoppingItem = NSManagedObject(entity: entity, insertInto: context)
-            newShoppingItem.setValue(ingredientName, forKey: "name")
-            newShoppingItem.setValue(true, forKey: "isChecked") // Default checked state
-
-            try context.save()
-            print("Added to shopping list: \(ingredientName)")
-
-            // Post notification to refresh shopping list
-            NotificationCenter.default.post(name: .shoppingListUpdated, object: nil)
-        } catch {
-            print("Failed to add ingredient to shopping list: \(error)")
-        }
-    }
-    
-    
-    private func saveToCoreData(_ ingredient: String) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
-
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
-        fetchRequest.predicate = NSPredicate(format: "name == %@", ingredient)
-
-        do {
-            let results = try context.fetch(fetchRequest)
-            if results.isEmpty {
-                let newItem = NSEntityDescription.insertNewObject(forEntityName: "ShoppingItem", into: context)
-                newItem.setValue(ingredient, forKey: "name")
-                newItem.setValue(true, forKey: "isChecked")
-                try context.save()
-                
-                // Notify the shopping list VC
-                NotificationCenter.default.post(name: .shoppingListUpdated, object: nil)
-            }
-        } catch {
-            print("Error saving to Core Data: \(error)")
-        }
-    }
-
-
-    private func removeFromCoreData(_ ingredient: String) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
-
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
-        fetchRequest.predicate = NSPredicate(format: "name == %@", ingredient)
-
-        do {
-            let results = try context.fetch(fetchRequest)
-            for result in results {
-                context.delete(result as! NSManagedObject)
-            }
-            try context.save()
-            
-            // Notify the shopping list VC
-            NotificationCenter.default.post(name: .shoppingListUpdated, object: nil)
-        } catch {
-            print("Error removing from Core Data: \(error)")
-        }
-    }
-
-}
-

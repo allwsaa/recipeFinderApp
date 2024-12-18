@@ -5,13 +5,6 @@
 //  Created by ntvlbl on 13.12.2024.
 //
 
-//
-//  ViewController.swift
-//  RecipeFinderApp
-//
-//  Created by ntvlbl on 13.12.2024.
-//
-
 import UIKit
 import SnapKit
 import CoreData
@@ -205,13 +198,30 @@ extension ViewController: UISearchBarDelegate {
 }
 
 extension ViewController: FilterViewControllerDelegate {
-    func applyFilters(filters: [String: String]) {
+    func applyFilters(filters: [String: String], sortOption: String?) {
         NetworkManager.shared.fetchRecipes(filters: filters) { [weak self] recipes, error in
             if let error = error {
                 print("Error applying filters: \(error)")
                 return
             }
             self?.recipes = recipes ?? []
+
+            if let sortOption = sortOption {
+                switch sortOption {
+                case "cookingTime":
+                    self?.recipes.sort { ($0.readyInMinutes ?? 0) < ($1.readyInMinutes ?? 0) }
+                case "calories":
+                    self?.recipes.sort {
+                        let calories1 = $0.nutrition?.nutrients.first(where: { $0.name.lowercased() == "calories" })?.amount ?? 0
+                        let calories2 = $1.nutrition?.nutrients.first(where: { $0.name.lowercased() == "calories" })?.amount ?? 0
+                        print("Calories1: \(calories1), Calories2: \(calories2)") // Debug output
+                        return calories1 < calories2
+                    }
+                default:
+                    break
+                }
+            }
+
             DispatchQueue.main.async {
                 self?.tableView.reloadData()
             }

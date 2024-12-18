@@ -10,24 +10,61 @@ import CoreData
 
 class ShoppingListViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
-    // MARK: - Properties
-    private var shoppingItems: [String] = []
-    private let tableView = UITableView()
 
-    // MARK: - View Lifecycle
+    private var shoppingItems: [String] = []
+    private var selectedItems: Set<String> = []
+    private let tableView = UITableView()
+    
+    private let selectAllButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Select All", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
+        button.addTarget(self, action: #selector(selectAllItems), for: .touchUpInside)
+        return button
+    }()
+    
+    private let deleteAllButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Trash All", for: .normal)
+        button.setTitleColor(.red, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
+        button.addTarget(self, action: #selector(trashAllItems), for: .touchUpInside)
+        return button
+    }()
+    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
         title = "Shopping List"
-        setupTableView()
+        setupUI()
         fetchShoppingItems()
         
-        // Listen for updates from NotificationCenter
         NotificationCenter.default.addObserver(self, selector: #selector(refreshShoppingList), name: .shoppingListUpdated, object: nil)
     }
-
-    // MARK: - Setup UI
-    private func setupTableView() {
+    
+ 
+    private func setupUI() {
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            title: "Select All",
+            style: .plain,
+            target: self,
+            action: #selector(selectAllItems)
+        )
+        navigationItem.leftBarButtonItem?.setTitleTextAttributes(
+            [.font: UIFont.boldSystemFont(ofSize: 16), .foregroundColor: UIColor.systemBlue],
+            for: .normal
+        )
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "trash"),
+            style: .plain,
+            target: self,
+            action: #selector(trashAllItems)
+        )
+        navigationItem.rightBarButtonItem?.tintColor = .red
+        
+  
         view.addSubview(tableView)
         tableView.dataSource = self
         tableView.delegate = self
@@ -37,18 +74,18 @@ class ShoppingListViewController: UIViewController, UITableViewDataSource, UITab
             make.edges.equalToSuperview()
         }
     }
-    
-    // MARK: - Core Data Fetch
+
+
     @objc private func fetchShoppingItems() {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
         
         let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
-        fetchRequest.predicate = NSPredicate(format: "isChecked == YES")
         
         do {
             let results = try context.fetch(fetchRequest)
             shoppingItems = results.compactMap { ($0 as? NSManagedObject)?.value(forKey: "name") as? String }
+            selectedItems.removeAll()
             tableView.reloadData()
         } catch {
             print("Failed to fetch shopping list: \(error)")
@@ -59,41 +96,33 @@ class ShoppingListViewController: UIViewController, UITableViewDataSource, UITab
         fetchShoppingItems()
     }
     
-    // MARK: - UITableViewDataSource
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return shoppingItems.count
-    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        cell.textLabel?.text = shoppingItems[indexPath.row]
-        return cell
-    }
-    
-    // MARK: - Swipe to Delete
-    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { [weak self] _, _, completionHandler in
-            guard let self = self else { return }
-            let ingredientToDelete = self.shoppingItems[indexPath.row]
-            self.deleteFromCoreData(ingredient: ingredientToDelete)
-            self.shoppingItems.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-            completionHandler(true)
+
+    @objc private func selectAllItems() {
+        if selectedItems.count == shoppingItems.count {
+            selectedItems.removeAll()
+            selectAllButton.setTitle("Select All", for: .normal)
+        } else {
+            selectedItems = Set(shoppingItems)
+            selectAllButton.setTitle("Deselect All", for: .normal)
         }
-        deleteAction.backgroundColor = .red
-        
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
-        configuration.performsFirstActionWithFullSwipe = true
-        return configuration
+        tableView.reloadData()
     }
     
-    // MARK: - Delete from Core Data
-    private func deleteFromCoreData(ingredient: String) {
+   
+    @objc private func trashAllItems() {
+        let alert = UIAlertController(title: "Delete All Items?", message: "This action cannot be undone.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+            self.deleteAllFromCoreData()
+        }))
+        present(alert, animated: true)
+    }
+    
+    private func deleteAllFromCoreData() {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
         
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName: "ShoppingItem")
-        fetchRequest.predicate = NSPredicate(format: "name == %@", ingredient)
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "ShoppingItem")
         
         do {
             let results = try context.fetch(fetchRequest)
@@ -101,14 +130,49 @@ class ShoppingListViewController: UIViewController, UITableViewDataSource, UITab
                 context.delete(result as! NSManagedObject)
             }
             try context.save()
-            print("Deleted ingredient: \(ingredient)")
+            shoppingItems.removeAll()
+            selectedItems.removeAll()
+            tableView.reloadData()
+            print("All items deleted.")
         } catch {
-            print("Failed to delete ingredient: \(error)")
+            print("Failed to delete all items: \(error)")
         }
     }
-}
+    
 
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return shoppingItems.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
+        let itemName = shoppingItems[indexPath.row]
+        let isSelected = selectedItems.contains(itemName)
+        
+        var content = cell.defaultContentConfiguration()
+        content.text = itemName
+        content.image = UIImage(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+        content.imageProperties.tintColor = isSelected ? .systemBlue : .gray
+        cell.contentConfiguration = content
+        
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let itemName = shoppingItems[indexPath.row]
+        
+        if selectedItems.contains(itemName) {
+            selectedItems.remove(itemName)
+        } else {
+            selectedItems.insert(itemName)
+        }
+        
+        tableView.reloadRows(at: [indexPath], with: .automatic)
+    }
+}
 
 extension Notification.Name {
     static let shoppingListUpdated = Notification.Name("shoppingListUpdated")
 }
+
