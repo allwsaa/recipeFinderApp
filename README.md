@@ -40,6 +40,8 @@ RecipeFinderApp is a robust iOS application designed to help users discover, org
 
 ## App Structure
 
+App is made with MVVM architecture.
+
 ### Main Components
 
 1. **ViewController:** The home screen displaying a list of recipes with search and filter capabilities.
